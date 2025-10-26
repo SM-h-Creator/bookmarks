@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的收藏卡片</title>
+<style>
+body{font-family:"微软雅黑";background:#f4f7fb;margin:0;padding:20px;}
+h1{text-align:center;color:#333;}
+.container{max-width:900px;margin:auto;}
+input,select,button{padding:8px;margin:5px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:15px;margin-top:20px;}
+.card{background:white;border-radius:10px;padding:15px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+.card img{width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:8px;}
+.card h3{margin:0 0 5px;}
+.card a{text-decoration:none;color:#007bff;}
+.card a:hover{text-decoration:underline;}
+.delete{background:#e74c3c;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;float:right;}
+.category{font-size:12px;color:#666;margin-bottom:5px;}
+.tools{text-align:center;margin-bottom:15px;}
+button.export,button.import{background:#007bff;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>📚 我的收藏网页</h1>
+<div>
+  <input id="title" placeholder="名称">
+  <input id="url" placeholder="网址">
+  <select id="category">
+    <option value="学习">学习</option>
+    <option value="工作">工作</option>
+    <option value="娱乐">娱乐</option>
+    <option value="其他">其他</option>
+  </select>
+  <button onclick="addBookmark()">添加</button>
+  <input id="search" placeholder="搜索..." oninput="render()">
+</div>
+<div class="tools">
+  <button class="export" onclick="exportData()">导出收藏</button>
+  <button class="import" onclick="document.getElementById('fileInput').click()">导入收藏</button>
+  <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importData(event)">
+</div>
+<div class="grid" id="grid"></div>
+</div>
+
+<script>
+let bookmarks=JSON.parse(localStorage.getItem("bookmarks_v3")||"[]");
+const grid=document.getElementById("grid");
+
+function getFavicon(url){
+  try{
+    const u=new URL(url);
+    return "https://www.google.com/s2/favicons?sz=128&domain_url="+u.origin;
+  }catch{return "https://www.google.com/s2/favicons?sz=128&domain_url="+url;}
+}
+
+function getPreview(url){
+  return `https://image.thum.io/get/width/600/crop/400/${encodeURIComponent(url)}`;
+}
+
+function render(){
+  const keyword=document.getElementById("search").value.toLowerCase();
+  grid.innerHTML="";
+  bookmarks.filter(b=>
+    b.title.toLowerCase().includes(keyword)||
+    b.category.toLowerCase().includes(keyword)
+  ).forEach((b,i)=>{
+    const card=document.createElement("div");
+    card.className="card";
+    card.innerHTML=`
+      < img src="${getPreview(b.url)}" onerror="this.src='${getFavicon(b.url)}'">
+      <div class="category">📁 ${b.category}</div>
+      <h3><a href=" " target="_blank">${b.title}</a ></h3>
+      <button class="delete" onclick="del(${i})">删除</button>
+    `;
+    grid.appendChild(card);
+  });
+  localStorage.setItem("bookmarks_v3",JSON.stringify(bookmarks));
+}
+
+function addBookmark(){
+  const title=document.getElementById("title").value.trim();
+  const url=document.getElementById("url").value.trim();
+  const category=document.getElementById("category").value;
+  if(!title||!url) return alert("请输入完整信息");
+  bookmarks.push({title,url,category});
+  document.getElementById("title").value="";
+  document.getElementById("url").value="";
+  render();
+}
+function del(i){bookmarks.splice(i,1);render();}
+function exportData(){
+  const blob=new Blob([JSON.stringify(bookmarks,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="我的收藏.json";
+  a.click();
+}
+function importData(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(){
+    try{
+      const data=JSON.parse(reader.result);
+      if(Array.isArray(data)){bookmarks=data;render();}
+      else alert("文件格式错误");
+    }catch{alert("导入失败");}
+  };
+  reader.readAsText(file);
+}
+render();
+</script>
+</body>
+</html>
